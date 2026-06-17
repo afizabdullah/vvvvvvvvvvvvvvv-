@@ -104,55 +104,77 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
         }
     }
 
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var currentScreen by remember { mutableStateOf("checker") }
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
-    Scaffold(
-        topBar = {
-            Column {
-                TopAppBar(
-                    title = { Text("مدقق المحترف", fontSize = 20.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1D1B20)) },
-                    navigationIcon = {
-                        IconButton(onClick = { }) {
-                            Icon(Icons.Filled.Menu, contentDescription = "Menu", tint = Color(0xFF49454F))
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = Color(0xFF49454F))
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFFF3EDF7)
-                    ),
-                    modifier = Modifier.background(Color(0xFFF3EDF7))
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "مدقق المحترف", 
+                    fontSize = 20.sp, 
+                    fontWeight = FontWeight.Bold, 
+                    color = Color(0xFF6750A4),
+                    modifier = Modifier.padding(16.dp)
                 )
-                TabRow(
-                    selectedTabIndex = selectedTab,
-                    containerColor = Color(0xFFF3EDF7),
-                    contentColor = Color(0xFF6750A4),
-                    indicator = { tabPositions ->
-                        TabRowDefaults.Indicator(
-                            Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                            color = Color(0xFF6750A4)
-                        )
-                    }
-                ) {
-                    Tab(
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                        text = { Text("المدقق", color = if (selectedTab == 0) Color(0xFF6750A4) else Color(0xFF1D1B20)) }
-                    )
-                    Tab(
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
-                        text = { Text("أدوات ذكية", color = if (selectedTab == 1) Color(0xFF6750A4) else Color(0xFF1D1B20)) }
+                HorizontalDivider()
+                NavigationDrawerItem(
+                    label = { Text("المدقق") },
+                    selected = currentScreen == "checker",
+                    onClick = { 
+                        currentScreen = "checker"
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                NavigationDrawerItem(
+                    label = { Text("أدوات ذكية") },
+                    selected = currentScreen == "smart",
+                    onClick = { 
+                        currentScreen = "smart"
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                NavigationDrawerItem(
+                    label = { Text("حول المطور") },
+                    selected = currentScreen == "about",
+                    onClick = { 
+                        currentScreen = "about"
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+            }
+        }
+    ) {
+        Scaffold(
+            topBar = {
+                Column {
+                    TopAppBar(
+                        title = { Text("مدقق المحترف", fontSize = 20.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1D1B20)) },
+                        navigationIcon = {
+                            IconButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
+                                Icon(Icons.Filled.Menu, contentDescription = "Menu", tint = Color(0xFF49454F))
+                            }
+                        },
+                        actions = {
+                            IconButton(onClick = { }) {
+                                Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = Color(0xFF49454F))
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color(0xFFF3EDF7)
+                        ),
+                        modifier = Modifier.background(Color(0xFFF3EDF7))
                     )
                 }
-            }
-        },
-        bottomBar = {
-            if (selectedTab == 0) {
-            Row(
+            },
+            bottomBar = {
+                if (currentScreen == "checker") {
+                Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color(0xFFF3EDF7))
@@ -176,12 +198,13 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                 ) {
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFE8DEF8), CircleShape)
-                            .padding(horizontal = 20.dp, vertical = 4.dp)
+                            .background(Color(0xFF4CAF50), CircleShape)
+                            .padding(horizontal = 24.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.PlayArrow, contentDescription = "Start", tint = Color(0xFF1D192B))
+                        Icon(Icons.Filled.PlayArrow, contentDescription = "Start", tint = Color.White)
                     }
-                    Text("بدء", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1D192B))
+                    Text("بدء", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF388E3C), modifier = Modifier.padding(top = 4.dp))
                 }
 
                 // PAUSE/RESUME
@@ -196,8 +219,15 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                         .alpha(if (state.isRunning) 1f else 0.4f)
                         .padding(4.dp)
                 ) {
-                    Text(if (state.isPaused) "►" else "II", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF49454F))
-                    Text(if (state.isPaused) "متابعة" else "إيقاف مؤقت", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF49454F))
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFFFF9800), CircleShape)
+                            .padding(horizontal = 24.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(if (state.isPaused) "►" else "II", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Text(if (state.isPaused) "متابعة" else "إيقاف مؤقت", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF57C00), modifier = Modifier.padding(top = 4.dp))
                 }
 
                 // STOP
@@ -212,15 +242,22 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                         .alpha(if (state.isRunning) 1f else 0.4f)
                         .padding(4.dp)
                 ) {
-                    Text("■", fontSize = 24.sp, color = Color(0xFF49454F), modifier = Modifier.padding(bottom = 2.dp))
-                    Text("إيقاف", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF49454F))
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFFF44336), CircleShape)
+                            .padding(horizontal = 24.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("■", fontSize = 18.sp, color = Color.White)
+                    }
+                    Text("إيقاف", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F), modifier = Modifier.padding(top = 4.dp))
                 }
             } // end Row
             } // end if
         },
         containerColor = Color(0xFFF7F2FA)
     ) { paddingValues ->
-        if (selectedTab == 0) {
+        if (currentScreen == "checker") {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -504,81 +541,175 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                     }
                 }
 
-                // Logs list
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(12.dp)
+                // Live Logs and Live View Tabs
+                var logTab by remember { mutableIntStateOf(0) }
+                
+                TabRow(
+                    selectedTabIndex = logTab,
+                    containerColor = Color(0xFF1C1B1F),
+                    contentColor = Color(0xFFD0BCFF),
+                    indicator = { tabPositions ->
+                        TabRowDefaults.Indicator(
+                            Modifier.tabIndicatorOffset(tabPositions[logTab]),
+                            color = Color(0xFFD0BCFF)
+                        )
+                    }
                 ) {
-                    items(state.logs, key = { it.id }) { log ->
-                        val color = when (log.status) {
-                            "SUCCESS" -> Color(0xFF4CAF50)
-                            "FAILED" -> Color(0xFFF44336)
-                            "ERROR" -> Color(0xFFE91E63)
-                            "RETRY" -> Color(0xFFFF9800)
-                            "INFO" -> Color(0xFF2196F3)
-                            else -> Color.Gray
-                        }
-                        val actionText = when(log.status) {
-                            "SUCCESS" -> "HIT"
-                            "FAILED" -> "BAD"
-                            "ERROR" -> "ERR"
-                            "RETRY" -> "RET"
-                            "INFO" -> "SYS"
-                            else -> "UNK"
-                        }
+                    Tab(
+                        selected = logTab == 0,
+                        onClick = { logTab = 0 },
+                        text = { Text("سجل العمليات", fontSize = 12.sp, color = if (logTab == 0) Color(0xFFD0BCFF) else Color(0xFF938F99)) }
+                    )
+                    Tab(
+                        selected = logTab == 1,
+                        onClick = { logTab = 1 },
+                        text = { Text("عرض حي (HTML)", fontSize = 12.sp, color = if (logTab == 1) Color(0xFFD0BCFF) else Color(0xFF938F99)) }
+                    )
+                }
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = "[${log.timestamp}]",
-                                color = Color(0xFF938F99),
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.width(72.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "$actionText:",
-                                color = color,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.width(36.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = log.info,
-                                color = Color(0xFFE6E1E5),
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                if (logTab == 0) {
+                    // Logs list
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(12.dp)
+                    ) {
+                        items(state.logs, key = { it.id }) { log ->
+                            val color = when (log.status) {
+                                "SUCCESS" -> Color(0xFF4CAF50)
+                                "FAILED" -> Color(0xFFF44336)
+                                "ERROR" -> Color(0xFFE91E63)
+                                "RETRY" -> Color(0xFFFF9800)
+                                "INFO" -> Color(0xFF2196F3)
+                                else -> Color.Gray
+                            }
+                            val actionText = when(log.status) {
+                                "SUCCESS" -> "HIT"
+                                "FAILED" -> "BAD"
+                                "ERROR" -> "ERR"
+                                "RETRY" -> "RET"
+                                "INFO" -> "SYS"
+                                else -> "UNK"
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "[${log.timestamp}]",
+                                    color = Color(0xFF938F99),
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.width(72.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "$actionText:",
+                                    color = color,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.width(36.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = log.info,
+                                    color = Color(0xFFE6E1E5),
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                        if (state.isRunning && !state.isPaused) {
+                            item {
+                                Text(
+                                    text = "في انتظار الدفعة التالية...",
+                                    color = Color(0xFF938F99).copy(alpha = 0.5f),
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
                         }
                     }
-                    if (state.isRunning && !state.isPaused) {
-                        item {
-                            Text(
-                                text = "في انتظار الدفعة التالية...",
-                                color = Color(0xFF938F99).copy(alpha = 0.5f),
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
+                } else {
+                    // Live View HTML
+                    var webViewRef by remember { mutableStateOf<WebView?>(null) }
+                    
+                    AndroidView(
+                        factory = { ctx ->
+                            WebView(ctx).apply {
+                                settings.javaScriptEnabled = false
+                                webViewClient = WebViewClient()
+                                setBackgroundColor(0xFF1C1B1F.toInt())
+                                webViewRef = this
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                    
+                    LaunchedEffect(state.latestResponseHtml) {
+                        if (state.latestResponseHtml.isNotEmpty()) {
+                            webViewRef?.loadDataWithBaseURL(state.loginUrl.ifEmpty { "http://localhost/" }, state.latestResponseHtml, "text/html", "UTF-8", null)
                         }
                     }
                 }
             } // end Live Log Container Column
             } // end outer Column
-        } else {
+        } else if (currentScreen == "smart") {
             SmartToolsScreen(viewModel, paddingValues)
+        } else if (currentScreen == "about") {
+            AboutScreen(paddingValues)
         }
     } // end Scaffold trailing lambda
+    } // end ModalNavigationDrawer
 } // end AccountCheckerScreen
+
+@Composable
+fun AboutScreen(paddingValues: PaddingValues) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Menu,
+            contentDescription = "Developer",
+            modifier = Modifier.size(72.dp),
+            tint = Color(0xFF6750A4)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "المطور",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF1D1B20)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "حافظ العزي",
+            fontSize = 20.sp,
+            color = Color(0xFF6750A4)
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+        Text(
+            text = "تطبيق مدقق المحترف مع التوليد الذكي والأدوات المتقدمة.",
+            fontSize = 14.sp,
+            color = Color.Gray,
+            textAlign = TextAlign.Center
+        )
+    }
+}
 
 @Composable
 fun SmartToolsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) {
