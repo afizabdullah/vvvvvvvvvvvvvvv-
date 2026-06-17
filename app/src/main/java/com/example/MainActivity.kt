@@ -14,6 +14,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -61,11 +64,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme(darkTheme = false) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = Color(0xFFF7F2FA)
-                ) {
-                    AccountCheckerScreen()
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = Color(0xFFF7F2FA)
+                    ) {
+                        AccountCheckerScreen()
+                    }
                 }
             }
         }
@@ -86,7 +91,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
             val contentResolver = context.contentResolver
             contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             
-            var name = "Unknown File"
+            var name = "ملف غير معروف"
             contentResolver.query(it, null, null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
                     val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
@@ -105,7 +110,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text("Auditor Pro", fontSize = 20.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1D1B20)) },
+                    title = { Text("مدقق المحترف", fontSize = 20.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1D1B20)) },
                     navigationIcon = {
                         IconButton(onClick = { }) {
                             Icon(Icons.Filled.Menu, contentDescription = "Menu", tint = Color(0xFF49454F))
@@ -135,12 +140,12 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                     Tab(
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
-                        text = { Text("HTTP Checker", color = if (selectedTab == 0) Color(0xFF6750A4) else Color(0xFF1D1B20)) }
+                        text = { Text("المدقق", color = if (selectedTab == 0) Color(0xFF6750A4) else Color(0xFF1D1B20)) }
                     )
                     Tab(
                         selected = selectedTab == 1,
                         onClick = { selectedTab = 1 },
-                        text = { Text("Smart Tools", color = if (selectedTab == 1) Color(0xFF6750A4) else Color(0xFF1D1B20)) }
+                        text = { Text("أدوات ذكية", color = if (selectedTab == 1) Color(0xFF6750A4) else Color(0xFF1D1B20)) }
                     )
                 }
             }
@@ -176,7 +181,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                     ) {
                         Icon(Icons.Filled.PlayArrow, contentDescription = "Start", tint = Color(0xFF1D192B))
                     }
-                    Text("START", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1D192B))
+                    Text("بدء", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1D192B))
                 }
 
                 // PAUSE/RESUME
@@ -192,7 +197,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                         .padding(4.dp)
                 ) {
                     Text(if (state.isPaused) "►" else "II", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF49454F))
-                    Text(if (state.isPaused) "RESUME" else "PAUSE", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF49454F))
+                    Text(if (state.isPaused) "متابعة" else "إيقاف مؤقت", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF49454F))
                 }
 
                 // STOP
@@ -208,7 +213,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                         .padding(4.dp)
                 ) {
                     Text("■", fontSize = 24.sp, color = Color(0xFF49454F), modifier = Modifier.padding(bottom = 2.dp))
-                    Text("STOP", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF49454F))
+                    Text("إيقاف", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF49454F))
                 }
             } // end Row
             } // end if
@@ -231,27 +236,27 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 StatItem(
-                    label = "Hit", value = state.stats.hit,
+                    label = "ناجح", value = state.stats.hit,
                     bg = Color(0xFFF0FDF4), labelColor = Color(0xFF15803D), valColor = Color(0xFF14532D),
                     modifier = Modifier.weight(1f)
                 )
                 StatItem(
-                    label = "Bad", value = state.stats.bad,
+                    label = "فاشل", value = state.stats.bad,
                     bg = Color(0xFFFEF2F2), labelColor = Color(0xFFB91C1C), valColor = Color(0xFF7F1D1D),
                     modifier = Modifier.weight(1f)
                 )
                 StatItem(
-                    label = "Retry", value = state.stats.retry,
+                    label = "إعادة", value = state.stats.retry,
                     bg = Color(0xFFFFFBEB), labelColor = Color(0xFFB45309), valColor = Color(0xFF78350F),
                     modifier = Modifier.weight(1f)
                 )
                 StatItem(
-                    label = "Unk", value = state.stats.unknown,
+                    label = "مجهول", value = state.stats.unknown,
                     bg = Color(0xFFF9FAFB), labelColor = Color(0xFF6B7280), valColor = Color(0xFF1F2937),
                     modifier = Modifier.weight(1f)
                 )
                 StatItem(
-                    label = "Total", value = state.stats.total,
+                    label = "الإجمالي", value = state.stats.total,
                     bg = Color(0xFFEFF6FF), labelColor = Color(0xFF1D4ED8), valColor = Color(0xFF1E3A8A),
                     modifier = Modifier.weight(1f)
                 )
@@ -292,12 +297,12 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                                 }
                                 .padding(horizontal = 12.dp, vertical = 12.dp)
                         ) {
-                            Text("TEST", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF21005D))
+                            Text("اختبار", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF21005D))
                         }
                     }
                     // Floating Label
                     Text(
-                        "Target Login URL",
+                        "رابط تسجيل الدخول المستهدف",
                         fontSize = 12.sp,
                         color = Color(0xFF6750A4),
                         modifier = Modifier
@@ -322,7 +327,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            if (state.selectedFileUri == null) "Pick TXT" else state.selectedFileName,
+                            if (state.selectedFileUri == null) "اختيار ملف TXT" else state.selectedFileName,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF1D1B20),
@@ -349,7 +354,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Separator: ( ${state.separator} )", fontSize = 14.sp, color = Color(0xFF1D1B20))
+                            Text("الفاصل: ( ${state.separator} )", fontSize = 14.sp, color = Color(0xFF1D1B20))
                             Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color(0xFF49454F))
                         }
                         ExposedDropdownMenu(
@@ -383,7 +388,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                             .padding(horizontal = 12.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Delay", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(end = 8.dp))
+                        Text("التأخير", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(end = 8.dp))
                         BasicTextField(
                             value = state.delaySeconds.toString(),
                             onValueChange = { 
@@ -396,7 +401,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                             modifier = Modifier.weight(1f),
                             enabled = !state.isRunning
                         )
-                        Text("sec", fontSize = 12.sp, color = Color.LightGray)
+                        Text("ثانية", fontSize = 12.sp, color = Color.LightGray)
                     }
 
                     // Threads Input
@@ -417,7 +422,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                                 .menuAnchor(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Threads", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(end = 8.dp))
+                            Text("عدد الخيوط", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(end = 8.dp))
                             Text(state.threadCount.toString(), fontSize = 14.sp, color = Color(0xFF1D1B20), modifier = Modifier.weight(1f))
                             Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color(0xFF49454F))
                         }
@@ -468,7 +473,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "LIVE OPERATIONS LOG",
+                        "سجل العمليات الحي",
                         fontSize = 10.sp,
                         color = Color(0xFFE6E1E5),
                         fontFamily = FontFamily.Monospace,
@@ -483,7 +488,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                if (state.isPaused) "PAUSED" else "RUNNING",
+                                if (state.isPaused) "متوقف مؤقتا" else "قيد التشغيل",
                                 fontSize = 10.sp,
                                 color = if (state.isPaused) Color(0xFFFF9800) else Color(0xFF4CAF50)
                             )
@@ -494,7 +499,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                                     .background(Color.Gray, CircleShape)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("IDLE", fontSize = 10.sp, color = Color.Gray)
+                            Text("جاهز", fontSize = 10.sp, color = Color.Gray)
                         }
                     }
                 }
@@ -558,7 +563,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                     if (state.isRunning && !state.isPaused) {
                         item {
                             Text(
-                                text = "Waiting for next batch...",
+                                text = "في انتظار الدفعة التالية...",
                                 color = Color(0xFF938F99).copy(alpha = 0.5f),
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
@@ -594,7 +599,7 @@ fun SmartToolsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) 
     ) {
         Spacer(modifier = Modifier.height(8.dp))
         
-        Text("Smart Card Generator", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D1B20))
+        Text("المولد الذكي للكروت", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D1B20))
         
         OutlinedTextField(
             value = genState.exampleCards,
@@ -618,13 +623,13 @@ fun SmartToolsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) 
         
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             Button(onClick = viewModel::generateCards, modifier = Modifier.weight(1f)) {
-                Text("Generate")
+                Text("توليد")
             }
             Button(onClick = {
                 clipboardManager.setText(AnnotatedString(genState.generatedCards))
-                Toast.makeText(context, "Copied!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "تم النسخ!", Toast.LENGTH_SHORT).show()
             }, modifier = Modifier.weight(1f)) {
-                Text("Copy")
+                Text("نسخ")
             }
         }
         
@@ -634,7 +639,7 @@ fun SmartToolsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) 
                 scrollState.animateScrollTo(1000)
             }
         }, modifier = Modifier.fillMaxWidth()) {
-            Text("Move to Checker")
+            Text("نقل للفاحص")
         }
         
         OutlinedTextField(
@@ -648,7 +653,7 @@ fun SmartToolsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) 
         
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         
-        Text("Auto Checker with WebView", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D1B20))
+        Text("الفاحص التلقائي مع متصفح", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D1B20))
         
         OutlinedTextField(
             value = webState.cardsToCheck,
@@ -671,7 +676,7 @@ fun SmartToolsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) 
         OutlinedTextField(
             value = webState.delaySeconds,
             onValueChange = viewModel::updateWebDelay,
-            label = { Text("Delay (seconds)") },
+            label = { Text("التأخير (ثواني)") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth().background(Color.White),
             enabled = !webState.isChecking
@@ -679,43 +684,67 @@ fun SmartToolsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) 
         
         Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Button(onClick = viewModel::startWebChecking, enabled = !webState.isChecking, modifier = Modifier.weight(1f).padding(end = 4.dp)) {
-                Text("Start")
+                Text("بدء")
             }
             Button(onClick = viewModel::stopWebChecking, enabled = webState.isChecking, modifier = Modifier.weight(1f).padding(start = 4.dp)) {
-                Text("Stop")
+                Text("إيقاف")
             }
         }
         
         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-            Text("Current: ${if (webState.currentCard.isNotEmpty()) webState.currentCard else "---"}", fontSize = 14.sp)
-            Text("Count: ${webState.currentIndex} / ${webState.totalCount}", fontSize = 14.sp)
+            Text("الحالي: ${if (webState.currentCard.isNotEmpty()) webState.currentCard else "---"}", fontSize = 14.sp)
+            Text("العدد: ${webState.currentIndex} / ${webState.totalCount}", fontSize = 14.sp)
         }
         
-        var webViewRef by remember { mutableStateOf<WebView?>(null) }
+        var webViewRef1 by remember { mutableStateOf<WebView?>(null) }
+        var webViewRef2 by remember { mutableStateOf<WebView?>(null) }
         
-        AndroidView(
-            factory = { ctx ->
-                WebView(ctx).apply {
-                    settings.javaScriptEnabled = true
-                    webViewClient = WebViewClient()
-                    webViewRef = this
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(300.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .border(2.dp, Color(0xFF6750A4), RoundedCornerShape(8.dp))
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().height(300.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                Text("صفحة 1 (تسجيل الدخول)", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(bottom = 4.dp))
+                AndroidView(
+                    factory = { ctx ->
+                        WebView(ctx).apply {
+                            settings.javaScriptEnabled = true
+                            webViewClient = WebViewClient()
+                            webViewRef1 = this
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, Color(0xFF6750A4), RoundedCornerShape(8.dp))
+                )
+            }
+            
+            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                Text("صفحة 2 (التحقق)", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(bottom = 4.dp))
+                AndroidView(
+                    factory = { ctx ->
+                        WebView(ctx).apply {
+                            settings.javaScriptEnabled = true
+                            webViewClient = WebViewClient()
+                            webViewRef2 = this
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, Color(0xFF6750A4), RoundedCornerShape(8.dp))
+                )
+            }
+        }
         
         LaunchedEffect(webState.currentCard, webState.isChecking) {
             if (webState.isChecking && webState.currentCard.isNotEmpty() && webState.currentCard != "تم الانتهاء من الفحص.") {
-                val url = if (webState.checkUrl.contains("?")) {
-                    "${webState.checkUrl}&username=${webState.currentCard}"
-                } else {
-                    "${webState.checkUrl}?username=${webState.currentCard}"
-                }
-                webViewRef?.loadUrl(url)
+                val base = webState.checkUrl
+                val url1 = if (base.contains("?")) "$base&username=${webState.currentCard}" else "$base?username=${webState.currentCard}"
+                val url2 = if (base.contains("?")) "$base&username=${webState.currentCard}&mode=check" else "$base?username=${webState.currentCard}&mode=check"
+                webViewRef1?.loadUrl(url1)
+                webViewRef2?.loadUrl(url2)
             }
         }
         

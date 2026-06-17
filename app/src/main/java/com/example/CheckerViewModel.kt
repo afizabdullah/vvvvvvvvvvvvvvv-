@@ -42,7 +42,7 @@ data class CheckerState(
     val separator: String = ":",
     val delaySeconds: Int = 1,
     val threadCount: Int = 1,
-    val selectedFileName: String = "No file selected",
+    val selectedFileName: String = "لم يتم اختيار ملف",
     val selectedFileUri: Uri? = null,
     val isRunning: Boolean = false,
     val isPaused: Boolean = false,
@@ -108,14 +108,14 @@ class CheckerViewModel : ViewModel() {
         return withContext(Dispatchers.IO) {
             try {
                 val url = _state.value.loginUrl
-                if(url.isEmpty()) return@withContext "URL is empty"
+                if(url.isEmpty()) return@withContext "رابط فارغ"
                 val request = Request.Builder().url(url).head().build()
                 client.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) "Connection Successful (HTTP ${response.code})"
-                    else "Connection Failed (HTTP ${response.code})"
+                    if (response.isSuccessful) "تم الاتصال بنجاح (HTTP ${response.code})"
+                    else "فشل الاتصال (HTTP ${response.code})"
                 }
             } catch (e: Exception) {
-                "Error: ${e.localizedMessage}"
+                "خطأ: ${e.localizedMessage}"
             }
         }
     }
@@ -149,7 +149,7 @@ class CheckerViewModel : ViewModel() {
                     }
                 }
             } catch (e: Exception) {
-                addLog("File Error: ${e.localizedMessage}", "ERROR")
+                addLog("خطأ في الملف: ${e.localizedMessage}", "ERROR")
                 stopCheckingInternal()
                 return@launch
             }
@@ -164,7 +164,7 @@ class CheckerViewModel : ViewModel() {
             // When all done:
             withContext(Dispatchers.Main) {
                 stopCheckingInternal()
-                addLog("Checking completed.", "INFO")
+                addLog("اكتمل الفحص.", "INFO")
             }
         }
     }
@@ -194,7 +194,7 @@ class CheckerViewModel : ViewModel() {
 
         if (parts.size < 2) {
             updateStats { it.copy(bad = it.bad + 1, total = it.total + 1) }
-            addLog("Invalid format: $line", "FAILED")
+            addLog("تنسيق غير صالح: $line", "FAILED")
             return
         }
 
