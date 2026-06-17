@@ -1,0 +1,6 @@
+{
+  "name": "Account Checker",
+  "description": "An Android application to automatically check accounts from a text file, featuring live logs, adjustable threads, and delays.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
