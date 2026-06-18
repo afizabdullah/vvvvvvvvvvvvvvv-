@@ -28,6 +28,9 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
@@ -65,12 +68,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             MyApplicationTheme(darkTheme = false) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = Color(0xFFF7F2FA)
-                    ) {
-                        AccountCheckerScreen()
-                    }
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background
+                        ) {
+                            AccountCheckerScreen()
+                        }
                 }
             }
         }
@@ -114,12 +117,12 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                 Spacer(Modifier.height(16.dp))
                 Text(
                     "مدقق المحترف", 
-                    fontSize = 20.sp, 
-                    fontWeight = FontWeight.Bold, 
-                    color = Color(0xFF6750A4),
-                    modifier = Modifier.padding(16.dp)
+                    fontSize = 24.sp, 
+                    fontWeight = FontWeight.Black, 
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(24.dp)
                 )
-                HorizontalDivider()
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
                 NavigationDrawerItem(
                     label = { Text("المدقق") },
                     selected = currentScreen == "checker",
@@ -130,7 +133,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
                 NavigationDrawerItem(
-                    label = { Text("أدوات ذكية") },
+                    label = { Text("قسم WiFi") },
                     selected = currentScreen == "smart",
                     onClick = { 
                         currentScreen = "smart"
@@ -154,21 +157,21 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
             topBar = {
                 Column {
                     TopAppBar(
-                        title = { Text("مدقق المحترف", fontSize = 20.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1D1B20)) },
+                        title = { Text("مدقق المحترف", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground) },
                         navigationIcon = {
                             IconButton(onClick = { coroutineScope.launch { drawerState.open() } }) {
-                                Icon(Icons.Filled.Menu, contentDescription = "Menu", tint = Color(0xFF49454F))
+                                Icon(Icons.Filled.Menu, contentDescription = "Menu", tint = MaterialTheme.colorScheme.onBackground)
                             }
                         },
                         actions = {
                             IconButton(onClick = { }) {
-                                Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = Color(0xFF49454F))
+                                Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = MaterialTheme.colorScheme.onBackground)
                             }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = Color(0xFFF3EDF7)
+                            containerColor = MaterialTheme.colorScheme.surface
                         ),
-                        modifier = Modifier.background(Color(0xFFF3EDF7))
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                     )
                 }
             },
@@ -177,9 +180,10 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                 Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFF3EDF7))
-                    .border(1.dp, Color(0xFFCAC4D0).copy(alpha = 0.5f))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.surfaceVariant)
                     .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
                     .height(64.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
@@ -255,46 +259,56 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
             } // end Row
             } // end if
         },
-        containerColor = Color(0xFFF7F2FA)
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         if (currentScreen == "checker") {
+            var delayInputText by remember(state.delaySeconds) { mutableStateOf(state.delaySeconds.toString()) }
+            var separatorInputText by remember(state.separator) { mutableStateOf(state.separator) }
+            var isFullScreenLog by remember { mutableStateOf(false) }
+            
+            BackHandler(enabled = isFullScreenLog) {
+                isFullScreenLog = false
+            }
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
+            
+            if (!isFullScreenLog) {
             // Counters Dashboard
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White)
-                    .border(1.dp, Color(0xFFCAC4D0).copy(alpha = 0.5f))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.surfaceVariant)
                     .padding(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 StatItem(
                     label = "ناجح", value = state.stats.hit,
-                    bg = Color(0xFFF0FDF4), labelColor = Color(0xFF15803D), valColor = Color(0xFF14532D),
+                    bg = Color(0xFF1B5E20).copy(alpha = 0.3f), labelColor = Color(0xFF4CAF50), valColor = Color(0xFF81C784),
                     modifier = Modifier.weight(1f)
                 )
                 StatItem(
                     label = "فاشل", value = state.stats.bad,
-                    bg = Color(0xFFFEF2F2), labelColor = Color(0xFFB91C1C), valColor = Color(0xFF7F1D1D),
+                    bg = Color(0xFFB71C1C).copy(alpha = 0.3f), labelColor = Color(0xFFF44336), valColor = Color(0xFFE57373),
                     modifier = Modifier.weight(1f)
                 )
                 StatItem(
                     label = "إعادة", value = state.stats.retry,
-                    bg = Color(0xFFFFFBEB), labelColor = Color(0xFFB45309), valColor = Color(0xFF78350F),
+                    bg = Color(0xFFE65100).copy(alpha = 0.3f), labelColor = Color(0xFFFF9800), valColor = Color(0xFFFFB74D),
                     modifier = Modifier.weight(1f)
                 )
                 StatItem(
                     label = "مجهول", value = state.stats.unknown,
-                    bg = Color(0xFFF9FAFB), labelColor = Color(0xFF6B7280), valColor = Color(0xFF1F2937),
+                    bg = Color(0xFF424242).copy(alpha = 0.5f), labelColor = Color(0xFFBDBDBD), valColor = Color(0xFFE0E0E0),
                     modifier = Modifier.weight(1f)
                 )
                 StatItem(
                     label = "الإجمالي", value = state.stats.total,
-                    bg = Color(0xFFEFF6FF), labelColor = Color(0xFF1D4ED8), valColor = Color(0xFF1E3A8A),
+                    bg = Color(0xFF0D47A1).copy(alpha = 0.3f), labelColor = Color(0xFF2196F3), valColor = Color(0xFF64B5F6),
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -312,20 +326,21 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                         BasicTextField(
                             value = state.loginUrl,
                             onValueChange = viewModel::updateUrl,
-                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color(0xFF1D1B20)),
+                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface),
                             singleLine = true,
                             enabled = !state.isRunning,
-                            cursorBrush = SolidColor(Color(0xFF6750A4)),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                             modifier = Modifier
                                 .weight(1f)
-                                .border(1.dp, Color(0xFF79747E), RoundedCornerShape(8.dp))
+                                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFEADDFF))
+                                .background(MaterialTheme.colorScheme.primary)
                                 .clickable(enabled = state.loginUrl.isNotEmpty() && !state.isRunning) {
                                     coroutineScope.launch {
                                         val result = viewModel.testConnection()
@@ -334,17 +349,17 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                                 }
                                 .padding(horizontal = 12.dp, vertical = 12.dp)
                         ) {
-                            Text("اختبار", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF21005D))
+                            Text("اختبار", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                         }
                     }
                     // Floating Label
                     Text(
-                        "رابط تسجيل الدخول المستهدف",
+                        "رابط الموقِع المستهدف",
                         fontSize = 12.sp,
-                        color = Color(0xFF6750A4),
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
                             .absoluteOffset(x = 12.dp, y = (-8).dp)
-                            .background(Color(0xFFF7F2FA))
+                            .background(MaterialTheme.colorScheme.background)
                             .padding(horizontal = 4.dp)
                     )
                 }
@@ -357,7 +372,8 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .border(1.dp, Color(0xFF79747E), RoundedCornerShape(8.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
                             .clip(RoundedCornerShape(8.dp))
                             .clickable(enabled = !state.isRunning) { fileLauncher.launch(arrayOf("text/plain")) }
                             .padding(vertical = 12.dp),
@@ -367,47 +383,34 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                             if (state.selectedFileUri == null) "اختيار ملف TXT" else state.selectedFileName,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF1D1B20),
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
                     }
 
-                    var sepExpanded by remember { mutableStateOf(false) }
-                    val separators = listOf(":", ";", "Tab", "|", "#")
-
-                    ExposedDropdownMenuBox(
-                        expanded = sepExpanded,
-                        onExpandedChange = { if (!state.isRunning) sepExpanded = !sepExpanded },
-                        modifier = Modifier.weight(1f)
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .border(1.dp, MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(1.dp, Color(0xFF79747E), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 12.dp, vertical = 12.dp)
-                                .menuAnchor(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("الفاصل: ( ${state.separator} )", fontSize = 14.sp, color = Color(0xFF1D1B20))
-                            Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color(0xFF49454F))
-                        }
-                        ExposedDropdownMenu(
-                            expanded = sepExpanded,
-                            onDismissRequest = { sepExpanded = false }
-                        ) {
-                            separators.forEach { selectionOption ->
-                                DropdownMenuItem(
-                                    text = { Text(selectionOption) },
-                                    onClick = {
-                                        viewModel.updateSeparator(selectionOption)
-                                        sepExpanded = false
-                                    }
-                                )
-                            }
-                        }
+                        Text("الفاصل:", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(end = 4.dp))
+                        BasicTextField(
+                            value = separatorInputText,
+                            onValueChange = {
+                                separatorInputText = it
+                                viewModel.updateSeparator(it)
+                            },
+                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface),
+                            singleLine = true,
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.weight(1f),
+                            enabled = !state.isRunning
+                        )
                     }
                 }
 
@@ -420,25 +423,27 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                     Row(
                         modifier = Modifier
                             .weight(1f)
-                            .background(Color.White, RoundedCornerShape(8.dp))
-                            .border(1.dp, Color(0xFF79747E), RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
                             .padding(horizontal = 12.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("التأخير", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(end = 8.dp))
+                        Text("التأخير", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 8.dp))
                         BasicTextField(
-                            value = state.delaySeconds.toString(),
+                            value = delayInputText,
                             onValueChange = { 
+                                delayInputText = it
                                 val parsed = it.toIntOrNull()
                                 if (parsed != null) viewModel.updateDelay(parsed)
                             },
-                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color(0xFF1D1B20)),
+                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface),
                             singleLine = true,
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.weight(1f),
                             enabled = !state.isRunning
                         )
-                        Text("ثانية", fontSize = 12.sp, color = Color.LightGray)
+                        Text("ثانية", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
                     // Threads Input
@@ -453,15 +458,15 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.White, RoundedCornerShape(8.dp))
-                                .border(1.dp, Color(0xFF79747E), RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+                                .border(1.dp, MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
                                 .padding(horizontal = 12.dp, vertical = 12.dp)
                                 .menuAnchor(),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("عدد الخيوط", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(end = 8.dp))
-                            Text(state.threadCount.toString(), fontSize = 14.sp, color = Color(0xFF1D1B20), modifier = Modifier.weight(1f))
-                            Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color(0xFF49454F))
+                            Text("عدد الخيوط", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 8.dp))
+                            Text(state.threadCount.toString(), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                            Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         ExposedDropdownMenu(
                             expanded = threadsExpanded,
@@ -480,6 +485,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                     }
                 }
             }
+            } // end isFullScreenLog
 
             // Live Log Container
             val listState = rememberLazyListState()
@@ -496,15 +502,15 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 16.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF1C1B1F))
-                    .border(1.dp, Color(0xFFCAC4D0), RoundedCornerShape(16.dp))
+                    .background(Color(0xFF121212))
+                    .border(1.dp, MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
             ) {
                 // Header
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF2D2C31))
-                        .border(width = 1.dp, color = Color(0xFF49454F))
+                        .background(Color(0xFF1E1E1E))
+                        .border(width = 1.dp, color = MaterialTheme.colorScheme.surfaceVariant)
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -537,6 +543,18 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("جاهز", fontSize = 10.sp, color = Color.Gray)
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        IconButton(
+                            onClick = { isFullScreenLog = !isFullScreenLog },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isFullScreenLog) Icons.Filled.Close else Icons.Filled.KeyboardArrowUp,
+                                contentDescription = if (isFullScreenLog) "تصغير" else "تكبير",
+                                tint = Color(0xFFE6E1E5),
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                     }
                 }
@@ -674,6 +692,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
 
 @Composable
 fun AboutScreen(paddingValues: PaddingValues) {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -693,21 +712,109 @@ fun AboutScreen(paddingValues: PaddingValues) {
             text = "المطور",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF1D1B20)
+            color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "حافظ العزي",
             fontSize = 20.sp,
-            color = Color(0xFF6750A4)
+            color = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.height(32.dp))
         Text(
             text = "تطبيق مدقق المحترف مع التوليد الذكي والأدوات المتقدمة.",
             fontSize = 14.sp,
-            color = Color.Gray,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
+        Spacer(modifier = Modifier.height(32.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Button(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/967783799137"))
+                    context.startActivity(intent)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366), contentColor = Color.White)
+            ) {
+                Text("WhatsApp")
+            }
+            
+            Button(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/CYBBEEAGLE"))
+                    context.startActivity(intent)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0088cc), contentColor = Color.White)
+            ) {
+                Text("Telegram")
+            }
+        }
+    }
+}
+
+@Composable
+fun WifiInfoCard() {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    var ssid by remember { mutableStateOf("جاري التحقق...") }
+    var gatewayUrl by remember { mutableStateOf("") }
+    
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val wifiManager = context.applicationContext.getSystemService(android.content.Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+        val info = wifiManager.connectionInfo
+        ssid = info.ssid ?: "غير متصل / غير معروف"
+        if (ssid == "<unknown ssid>") {
+            ssid = "تتطلب صلاحية الموقع (Location) لتحديد اسم الشبكة"
+        }
+        
+        val dhcp = wifiManager.dhcpInfo
+        if (dhcp != null) {
+            val gatewayInt = dhcp.gateway
+            if (gatewayInt != 0) {
+                val ip = "${gatewayInt and 0xFF}.${gatewayInt shr 8 and 0xFF}.${gatewayInt shr 16 and 0xFF}.${gatewayInt shr 24 and 0xFF}"
+                gatewayUrl = "http://$ip"
+            } else {
+                gatewayUrl = "غير متوفر"
+            }
+        }
+    }
+    
+    LaunchedEffect(Unit) {
+        permissionLauncher.launch(arrayOf(
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
+        ))
+    }
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("معلومات شبكة WiFi", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("الشبكة الحالية: $ssid", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+            if (gatewayUrl.isNotEmpty() && gatewayUrl != "غير متوفر") {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("رابط صفحة الراوتر/الشبكة:", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(gatewayUrl, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                    Button(onClick = {
+                        clipboardManager.setText(AnnotatedString(gatewayUrl))
+                        Toast.makeText(context, "تم النسخ!", Toast.LENGTH_SHORT).show()
+                    }, modifier = Modifier.height(36.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
+                        Text("نسخ", fontSize = 12.sp)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -730,13 +837,19 @@ fun SmartToolsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) 
     ) {
         Spacer(modifier = Modifier.height(8.dp))
         
-        Text("المولد الذكي للكروت", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D1B20))
+        WifiInfoCard()
+        
+        Text("المولد الذكي للكروت", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         
         OutlinedTextField(
             value = genState.exampleCards,
             onValueChange = viewModel::updateExampleCards,
             label = { Text("أدخل 3 أمثلة للكروت (كل كرت في سطر)") },
-            modifier = Modifier.fillMaxWidth().background(Color.White),
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+            ),
             minLines = 4
         )
         
@@ -745,7 +858,11 @@ fun SmartToolsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) 
             onValueChange = viewModel::updateGenCount,
             label = { Text("عدد الكروت") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth().background(Color.White)
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+            ),
+            modifier = Modifier.fillMaxWidth()
         )
         
         if (genState.errorMessage != null) {
@@ -778,19 +895,27 @@ fun SmartToolsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) 
             onValueChange = {},
             readOnly = true,
             label = { Text("النتائج") },
-            modifier = Modifier.fillMaxWidth().background(Color.White),
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+            ),
             minLines = 4
         )
         
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.surfaceVariant)
         
-        Text("الفاحص التلقائي مع متصفح", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D1B20))
+        Text("الفاحص التلقائي مع متصفح", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         
         OutlinedTextField(
             value = webState.cardsToCheck,
             onValueChange = viewModel::updateWebCards,
             label = { Text("الكروت المراد فحصها") },
-            modifier = Modifier.fillMaxWidth().background(Color.White),
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+            ),
             minLines = 4,
             enabled = !webState.isChecking
         )
@@ -799,7 +924,11 @@ fun SmartToolsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) 
             value = webState.checkUrl,
             onValueChange = viewModel::updateWebUrl,
             label = { Text("رابط الفحص (مثال: http://site/check)") },
-            modifier = Modifier.fillMaxWidth().background(Color.White),
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+            ),
             singleLine = true,
             enabled = !webState.isChecking
         )
@@ -809,7 +938,11 @@ fun SmartToolsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) 
             onValueChange = viewModel::updateWebDelay,
             label = { Text("التأخير (ثواني)") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth().background(Color.White),
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+            ),
             enabled = !webState.isChecking
         )
         
@@ -823,59 +956,36 @@ fun SmartToolsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) 
         }
         
         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-            Text("الحالي: ${if (webState.currentCard.isNotEmpty()) webState.currentCard else "---"}", fontSize = 14.sp)
-            Text("العدد: ${webState.currentIndex} / ${webState.totalCount}", fontSize = 14.sp)
+            Text("الحالي: ${if (webState.currentCard.isNotEmpty()) webState.currentCard else "---"}", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+            Text("العدد: ${webState.currentIndex} / ${webState.totalCount}", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
         }
         
-        var webViewRef1 by remember { mutableStateOf<WebView?>(null) }
-        var webViewRef2 by remember { mutableStateOf<WebView?>(null) }
+        var webViewRef by remember { mutableStateOf<WebView?>(null) }
         
-        Row(
-            modifier = Modifier.fillMaxWidth().height(300.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        Column(
+            modifier = Modifier.fillMaxWidth().height(300.dp)
         ) {
-            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                Text("صفحة 1 (تسجيل الدخول)", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(bottom = 4.dp))
-                AndroidView(
-                    factory = { ctx ->
-                        WebView(ctx).apply {
-                            settings.javaScriptEnabled = true
-                            webViewClient = WebViewClient()
-                            webViewRef1 = this
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(8.dp))
-                        .border(1.dp, Color(0xFF6750A4), RoundedCornerShape(8.dp))
-                )
-            }
-            
-            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                Text("صفحة 2 (التحقق)", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(bottom = 4.dp))
-                AndroidView(
-                    factory = { ctx ->
-                        WebView(ctx).apply {
-                            settings.javaScriptEnabled = true
-                            webViewClient = WebViewClient()
-                            webViewRef2 = this
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(8.dp))
-                        .border(1.dp, Color(0xFF6750A4), RoundedCornerShape(8.dp))
-                )
-            }
+            Text("صفحة ويب تسجيل الدخول والفحص", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
+            AndroidView(
+                factory = { ctx ->
+                    WebView(ctx).apply {
+                        settings.javaScriptEnabled = true
+                        webViewClient = WebViewClient()
+                        webViewRef = this
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+            )
         }
         
         LaunchedEffect(webState.currentCard, webState.isChecking) {
             if (webState.isChecking && webState.currentCard.isNotEmpty() && webState.currentCard != "تم الانتهاء من الفحص.") {
                 val base = webState.checkUrl
-                val url1 = if (base.contains("?")) "$base&username=${webState.currentCard}" else "$base?username=${webState.currentCard}"
-                val url2 = if (base.contains("?")) "$base&username=${webState.currentCard}&mode=check" else "$base?username=${webState.currentCard}&mode=check"
-                webViewRef1?.loadUrl(url1)
-                webViewRef2?.loadUrl(url2)
+                val url = if (base.contains("?")) "$base&username=${webState.currentCard}" else "$base?username=${webState.currentCard}"
+                webViewRef?.loadUrl(url)
             }
         }
         
