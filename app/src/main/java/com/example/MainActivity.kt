@@ -60,19 +60,26 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import com.example.ui.theme.MyApplicationTheme
+import androidx.compose.foundation.isSystemInDarkTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MyApplicationTheme(darkTheme = false) {
+            val viewModel: CheckerViewModel = viewModel()
+            val state by viewModel.state.collectAsState()
+            val isDarkTheme = isSystemInDarkTheme()
+            val primColor = try { Color(android.graphics.Color.parseColor(state.primaryColorHex)) } catch (e: Exception) { Color(0xFF6750A4) }
+            val colorScheme = if (isDarkTheme) darkColorScheme(primary = primColor) else lightColorScheme(primary = primColor)
+            
+            MaterialTheme(colorScheme = colorScheme) {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                         Surface(
                             modifier = Modifier.fillMaxSize(),
                             color = MaterialTheme.colorScheme.background
                         ) {
-                            AccountCheckerScreen()
+                            AccountCheckerScreen(viewModel)
                         }
                 }
             }
@@ -137,6 +144,15 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                     selected = currentScreen == "smart",
                     onClick = { 
                         currentScreen = "smart"
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                NavigationDrawerItem(
+                    label = { Text("الإعدادات") },
+                    selected = currentScreen == "settings",
+                    onClick = { 
+                        currentScreen = "settings"
                         coroutineScope.launch { drawerState.close() }
                     },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
@@ -672,6 +688,15 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                             }
                         },
                         update = { view ->
+                            val isDesktop = state.isDesktopMode
+                            if (isDesktop) {
+                                view.settings.userAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+                            } else {
+                                view.settings.userAgentString = android.webkit.WebSettings.getDefaultUserAgent(context)
+                            }
+                            view.settings.useWideViewPort = isDesktop
+                            view.settings.loadWithOverviewMode = isDesktop
+
                             view.webViewClient = object : WebViewClient() {
                                 override fun onPageFinished(v: WebView, url: String) {
                                     super.onPageFinished(v, url)
@@ -685,7 +710,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                                                 var n = (input.name || '').toLowerCase();
                                                 var t = (input.type || '').toLowerCase();
                                                 var id = (input.id || '').toLowerCase();
-                                                if(t==='email' || n.indexOf('user')!==-1 || n.indexOf('email')!==-1 || id.indexOf('user')!==-1 || id.indexOf('email')!==-1) {
+                                                if(t==='email' || n.indexOf('user')!==-1 || n.indexOf('email')!==-1 || id.indexOf('user')!==-1 || id.indexOf('email')!==-1 || n.indexOf('login')!==-1 || id.indexOf('login')!==-1) {
                                                     if(input.value === '') { input.value = '$safeUsername'; }
                                                 }
                                                 if(t==='password' || n.indexOf('pass')!==-1 || id.indexOf('pass')!==-1) {
@@ -694,7 +719,9 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                                             }
                                         })();
                                     """.trimIndent()
-                                    v.evaluateJavascript(js, null)
+                                    v.evaluateJavascript(js) {
+                                        viewModel.updateState { copy(pageLoadedTrigger = System.currentTimeMillis()) }
+                                    }
                                 }
                             }
                         },
@@ -722,12 +749,65 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
             } // end outer Column
         } else if (currentScreen == "smart") {
             SmartToolsScreen(viewModel, paddingValues)
+        } else if (currentScreen == "settings") {
+            SettingsScreen(viewModel, paddingValues)
         } else if (currentScreen == "about") {
             AboutScreen(paddingValues)
         }
     } // end Scaffold trailing lambda
     } // end ModalNavigationDrawer
 } // end AccountCheckerScreen
+
+@Composable
+fun SettingsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) {
+    val state by viewModel.state.collectAsState()
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Text("الإعدادات", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        // Desktop Mode Switch
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable { viewModel.updateState { copy(isDesktopMode = !isDesktopMode) } }.padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("موقع مصمم للكمبيوتر (Desktop Mode)", fontSize = 16.sp, modifier = Modifier.weight(1f))
+            Switch(
+                checked = state.isDesktopMode,
+                onCheckedChange = { viewModel.updateState { copy(isDesktopMode = it) } }
+            )
+        }
+        
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        
+        // Theme Colors
+        Text("لون التطبيق", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            val colors = listOf("#6750A4", "#0088cc", "#25D366", "#E91E63", "#FF9800", "#F44336")
+            colors.forEach { colorHex ->
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(Color(android.graphics.Color.parseColor(colorHex)))
+                        .clickable { viewModel.updateState { copy(primaryColorHex = colorHex) } }
+                        .border(
+                            width = if (state.primaryColorHex == colorHex) 4.dp else 0.dp,
+                            color = if (state.primaryColorHex == colorHex) MaterialTheme.colorScheme.onBackground else Color.Transparent,
+                            shape = CircleShape
+                        )
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun AboutScreen(paddingValues: PaddingValues) {

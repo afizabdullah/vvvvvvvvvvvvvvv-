@@ -53,7 +53,10 @@ data class CheckerState(
     val currentAccountPassword: String = "",
     val currentIndex: Int = 0,
     val totalCount: Int = 0,
-    val testUrlTrigger: Long = 0L
+    val testUrlTrigger: Long = 0L,
+    val isDesktopMode: Boolean = false,
+    val primaryColorHex: String = "#6750A4",
+    val pageLoadedTrigger: Long = 0L
 )
 
 data class GeneratorState(
@@ -82,6 +85,10 @@ class CheckerViewModel : ViewModel() {
 
     private val _webState = MutableStateFlow(WebCheckerState())
     val webState: StateFlow<WebCheckerState> = _webState.asStateFlow()
+
+    fun updateState(transform: CheckerState.() -> CheckerState) {
+        _state.update(transform)
+    }
 
     private val patternAnalyzer = PatternAnalyzer()
     private var webJob: Job? = null
@@ -195,13 +202,21 @@ class CheckerViewModel : ViewModel() {
                 it.copy(
                     currentAccountUsername = username,
                     currentAccountPassword = password,
-                    currentIndex = index
+                    currentIndex = index,
+                    pageLoadedTrigger = 0L // reset trigger
                 ) 
             }
             
             addLog("يتم ملء حقول: $username", "INFO")
 
-            // Wait for WebView logic
+            // Wait for WebView to finish loading (up to 15 seconds)
+            var waited = 0
+            while (_state.value.pageLoadedTrigger == 0L && waited < 150 && !stopFlag && !pausedFlag) {
+                delay(100)
+                waited++
+            }
+            
+            // Now apply the user's requested delay
             delay(_state.value.delaySeconds * 1000L)
             
             updateStats { it.copy(total = it.total + 1, unknown = it.unknown + 1) } // Default state since we don't automatically check hit/bad anymore, or we can just leave it as total
