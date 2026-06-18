@@ -560,7 +560,7 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                 }
 
                 // Live Logs and Live View Tabs
-                var logTab by remember { mutableIntStateOf(0) }
+                var logTab by remember { mutableIntStateOf(1) } // Default to browser view
                 
                 TabRow(
                     selectedTabIndex = logTab,
@@ -581,17 +581,18 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                     Tab(
                         selected = logTab == 1,
                         onClick = { logTab = 1 },
-                        text = { Text("عرض حي (HTML)", fontSize = 12.sp, color = if (logTab == 1) Color(0xFFD0BCFF) else Color(0xFF938F99)) }
+                        text = { Text("المتصفح الحي", fontSize = 12.sp, color = if (logTab == 1) Color(0xFFD0BCFF) else Color(0xFF938F99)) }
                     )
                 }
 
-                if (logTab == 0) {
+                Box(modifier = Modifier.fillMaxSize()) {
                     // Logs list
                     LazyColumn(
                         state = listState,
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(12.dp)
+                            .alpha(if (logTab == 0) 1f else 0f)
                     ) {
                         items(state.logs, key = { it.id }) { log ->
                             val color = when (log.status) {
@@ -653,29 +654,57 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                                 )
                             }
                         }
-                    }
-                } else {
-                    // Live View HTML
+                    } // end LazyColumn
+
+                    // Live View WebView
                     var webViewRef by remember { mutableStateOf<WebView?>(null) }
                     
                     AndroidView(
                         factory = { ctx ->
                             WebView(ctx).apply {
-                                settings.javaScriptEnabled = false
-                                webViewClient = WebViewClient()
+                                settings.javaScriptEnabled = true
+                                settings.domStorageEnabled = true
                                 setBackgroundColor(0xFF1C1B1F.toInt())
                                 webViewRef = this
+                            }
+                        },
+                        update = { view ->
+                            view.webViewClient = object : WebViewClient() {
+                                override fun onPageFinished(v: WebView, url: String) {
+                                    super.onPageFinished(v, url)
+                                    val safeUsername = state.currentAccountUsername.replace("'", "\\'")
+                                    val safePassword = state.currentAccountPassword.replace("'", "\\'")
+                                    val js = """
+                                        javascript:(function(){
+                                            var inputs = document.getElementsByTagName('input');
+                                            for(var i=0; i<inputs.length; i++){
+                                                var input = inputs[i];
+                                                var n = (input.name || '').toLowerCase();
+                                                var t = (input.type || '').toLowerCase();
+                                                var id = (input.id || '').toLowerCase();
+                                                if(t==='email' || n.indexOf('user')!==-1 || n.indexOf('email')!==-1 || id.indexOf('user')!==-1 || id.indexOf('email')!==-1) {
+                                                    if(input.value === '') { input.value = '$safeUsername'; }
+                                                }
+                                                if(t==='password' || n.indexOf('pass')!==-1 || id.indexOf('pass')!==-1) {
+                                                    if(input.value === '') { input.value = '$safePassword'; }
+                                                }
+                                            }
+                                        })();
+                                    """.trimIndent()
+                                    v.evaluateJavascript(js, null)
+                                }
                             }
                         },
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(8.dp)
                             .clip(RoundedCornerShape(8.dp))
+                            .alpha(if (logTab == 1) 1f else 0f)
                     )
                     
-                    LaunchedEffect(state.latestResponseHtml) {
-                        if (state.latestResponseHtml.isNotEmpty()) {
-                            webViewRef?.loadDataWithBaseURL(state.loginUrl.ifEmpty { "http://localhost/" }, state.latestResponseHtml, "text/html", "UTF-8", null)
+                    LaunchedEffect(state.currentIndex) {
+                        if (state.isRunning && state.loginUrl.isNotEmpty()) {
+                            webViewRef?.loadUrl(state.loginUrl)
                         }
                     }
                 }
