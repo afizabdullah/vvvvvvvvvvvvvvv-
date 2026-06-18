@@ -664,6 +664,9 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                             WebView(ctx).apply {
                                 settings.javaScriptEnabled = true
                                 settings.domStorageEnabled = true
+                                settings.builtInZoomControls = true
+                                settings.displayZoomControls = false
+                                settings.setSupportZoom(true)
                                 setBackgroundColor(0xFF1C1B1F.toInt())
                                 webViewRef = this
                             }
@@ -705,6 +708,13 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                     LaunchedEffect(state.currentIndex) {
                         if (state.isRunning && state.loginUrl.isNotEmpty()) {
                             webViewRef?.loadUrl(state.loginUrl)
+                        }
+                    }
+                    
+                    LaunchedEffect(state.testUrlTrigger) {
+                        if (state.testUrlTrigger > 0L && state.loginUrl.isNotEmpty()) {
+                            webViewRef?.loadUrl(state.loginUrl)
+                            logTab = 1 // Switch to the browser tab
                         }
                     }
                 }

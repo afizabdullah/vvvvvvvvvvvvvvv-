@@ -52,7 +52,8 @@ data class CheckerState(
     val currentAccountUsername: String = "",
     val currentAccountPassword: String = "",
     val currentIndex: Int = 0,
-    val totalCount: Int = 0
+    val totalCount: Int = 0,
+    val testUrlTrigger: Long = 0L
 )
 
 data class GeneratorState(
@@ -110,7 +111,8 @@ class CheckerViewModel : ViewModel() {
     }
 
     suspend fun testConnection(): String {
-        return "تم التعطيل. الفحص سيتم عبر المتصفح فقط."
+        _state.update { it.copy(testUrlTrigger = System.currentTimeMillis()) }
+        return "جاري فتح الرابط في المتصفح الحي..."
     }
 
     fun startChecking(contentResolver: ContentResolver) {
