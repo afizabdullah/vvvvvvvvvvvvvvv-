@@ -176,6 +176,15 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
                 NavigationDrawerItem(
+                    label = { Text("مدقق هوتميل") },
+                    selected = currentScreen == "hotmail",
+                    onClick = { 
+                        currentScreen = "hotmail"
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                NavigationDrawerItem(
                     label = { Text("الإعدادات") },
                     selected = currentScreen == "settings",
                     onClick = { 
@@ -782,6 +791,8 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
             RepeatScreen(viewModel, paddingValues)
         } else if (currentScreen == "otp") {
             OtpScreen(viewModel, paddingValues)
+        } else if (currentScreen == "hotmail") {
+            HotmailScreen(viewModel, paddingValues)
         } else if (currentScreen == "settings") {
             SettingsScreen(viewModel, paddingValues)
         } else if (currentScreen == "about") {
@@ -790,6 +801,112 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
     } // end Scaffold trailing lambda
     } // end ModalNavigationDrawer
 } // end AccountCheckerScreen
+
+@Composable
+fun HotmailScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) {
+    val state by viewModel.hotmailState.collectAsState()
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(16.dp)
+            .verticalScroll(scrollState)
+    ) {
+        Text("مدقق هوتميل", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Info Cards Layer
+        Row(
+            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.surfaceVariant).padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            StatItem("ناجح", state.good, Color(0xFF1B5E20).copy(alpha = 0.3f), Color(0xFF4CAF50), Color(0xFF81C784), Modifier.weight(1f))
+            StatItem("مرفوض/سيء", state.bad, Color(0xFFB71C1C).copy(alpha = 0.3f), Color(0xFFF44336), Color(0xFFE57373), Modifier.weight(1f))
+            StatItem("محمي (2FA)", state.twoFa, Color(0xFFE65100).copy(alpha = 0.3f), Color(0xFFFF9800), Color(0xFFFFB74D), Modifier.weight(1f))
+            StatItem("غير معروف", state.unknown, Color(0xFF424242).copy(alpha = 0.5f), Color(0xFFBDBDBD), Color(0xFFE0E0E0), Modifier.weight(1f))
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = state.accountList,
+            onValueChange = { viewModel.updateHotmailAccountList(it) },
+            label = { Text("الحسابات (Email:Pass)") },
+            modifier = Modifier.fillMaxWidth().height(150.dp),
+            maxLines = 10,
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = state.threadCount,
+                onValueChange = { viewModel.updateHotmailThreads(it) },
+                label = { Text("عدد البوتات (Threads)") },
+                modifier = Modifier.weight(1f),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                shape = RoundedCornerShape(12.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = { 
+                    if (state.isRunning) viewModel.stopHotmailChecking() else viewModel.startHotmailChecking() 
+                },
+                modifier = Modifier.height(64.dp).padding(top = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = if (state.isRunning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+            ) {
+                Text(if (state.isRunning) "إيقاف" else "بدء الفحص")
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("إعدادات تيليجرام (اختياري)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = state.botToken,
+            onValueChange = { viewModel.updateHotmailBotToken(it) },
+            label = { Text("Bot Token") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = state.chatId,
+            onValueChange = { viewModel.updateHotmailChatId(it) },
+            label = { Text("Chat ID") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("الحالة: ${state.statusText}", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Logs
+        Card(
+            modifier = Modifier.fillMaxWidth().height(200.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            LazyColumn(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+                items(state.logs.size) { index ->
+                    val log = state.logs[index]
+                    val color = when {
+                        log.contains("HIT") || log.contains("GOOD") -> Color(0xFF4CAF50)
+                        log.contains("BAD") -> Color(0xFFF44336)
+                        log.contains("2FA") -> Color(0xFFFF9800)
+                        else -> Color(0xFF9E9E9E)
+                    }
+                    Text(log, fontSize = 12.sp, color = color, modifier = Modifier.padding(vertical = 2.dp))
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun OtpScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) {
@@ -956,6 +1073,26 @@ fun RepeatScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) {
                 Text(if (state.isRunning) "إيقاف" else "بدء الفحص")
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("إعدادات تيليجرام (اختياري)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = state.botToken,
+            onValueChange = { viewModel.updateRepeatBotToken(it) },
+            label = { Text("Bot Token") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = state.chatId,
+            onValueChange = { viewModel.updateRepeatChatId(it) },
+            label = { Text("Chat ID") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
         Text("الحالة: ${state.statusText}", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)

