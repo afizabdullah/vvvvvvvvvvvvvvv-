@@ -149,6 +149,33 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                 )
                 NavigationDrawerItem(
+                    label = { Text("مدقق growfollows.com") },
+                    selected = currentScreen == "growfollows",
+                    onClick = { 
+                        currentScreen = "growfollows"
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                NavigationDrawerItem(
+                    label = { Text("مدقق www.repeat.gg") },
+                    selected = currentScreen == "repeat",
+                    onClick = { 
+                        currentScreen = "repeat"
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                NavigationDrawerItem(
+                    label = { Text("مدقق OTP") },
+                    selected = currentScreen == "otp",
+                    onClick = { 
+                        currentScreen = "otp"
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+                NavigationDrawerItem(
                     label = { Text("الإعدادات") },
                     selected = currentScreen == "settings",
                     onClick = { 
@@ -749,6 +776,12 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
             } // end outer Column
         } else if (currentScreen == "smart") {
             SmartToolsScreen(viewModel, paddingValues)
+        } else if (currentScreen == "growfollows") {
+            GrowFollowsScreen(viewModel, paddingValues)
+        } else if (currentScreen == "repeat") {
+            RepeatScreen(viewModel, paddingValues)
+        } else if (currentScreen == "otp") {
+            OtpScreen(viewModel, paddingValues)
         } else if (currentScreen == "settings") {
             SettingsScreen(viewModel, paddingValues)
         } else if (currentScreen == "about") {
@@ -757,6 +790,304 @@ fun AccountCheckerScreen(viewModel: CheckerViewModel = viewModel()) {
     } // end Scaffold trailing lambda
     } // end ModalNavigationDrawer
 } // end AccountCheckerScreen
+
+@Composable
+fun OtpScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) {
+    val state by viewModel.otpState.collectAsState()
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(16.dp)
+            .verticalScroll(scrollState)
+    ) {
+        Text("مدقق OTP", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Info Cards Layer
+        Row(
+            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.surfaceVariant).padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            StatItem("ناجح", state.hits, Color(0xFF1B5E20).copy(alpha = 0.3f), Color(0xFF4CAF50), Color(0xFF81C784), Modifier.weight(1f))
+            StatItem("مرفوض", state.bad, Color(0xFFB71C1C).copy(alpha = 0.3f), Color(0xFFF44336), Color(0xFFE57373), Modifier.weight(1f))
+            StatItem("إعادة(OTP)", state.retry, Color(0xFFE65100).copy(alpha = 0.3f), Color(0xFFFF9800), Color(0xFFFFB74D), Modifier.weight(1f))
+            StatItem("مجهول", state.unknown, Color(0xFF424242).copy(alpha = 0.5f), Color(0xFFBDBDBD), Color(0xFFE0E0E0), Modifier.weight(1f))
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = state.accountList,
+            onValueChange = { viewModel.updateOtpAccountList(it) },
+            label = { Text("البطاقات (CC|MM|YY|CVV)") },
+            modifier = Modifier.fillMaxWidth().height(150.dp),
+            maxLines = 10,
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = state.threadCount,
+                onValueChange = { viewModel.updateOtpThreads(it) },
+                label = { Text("عدد البوتات (Threads)") },
+                modifier = Modifier.weight(1f),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                shape = RoundedCornerShape(12.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = { 
+                    if (state.isRunning) viewModel.stopOtpChecking() else viewModel.startOtpChecking() 
+                },
+                modifier = Modifier.height(64.dp).padding(top = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = if (state.isRunning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+            ) {
+                Text(if (state.isRunning) "إيقاف" else "بدء الفحص")
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("إعدادات تيليجرام (اختياري)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = state.botToken,
+            onValueChange = { viewModel.updateOtpBotToken(it) },
+            label = { Text("Bot Token") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = state.chatId,
+            onValueChange = { viewModel.updateOtpChatId(it) },
+            label = { Text("Chat ID") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("الحالة: ${state.statusText}", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Logs
+        Card(
+            modifier = Modifier.fillMaxWidth().height(200.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            LazyColumn(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+                items(state.logs.size) { index ->
+                    val log = state.logs[index]
+                    val color = when {
+                        log.contains("PASSED") -> Color(0xFF4CAF50)
+                        log.contains("DECLINED") || log.contains("BAD") -> Color(0xFFF44336)
+                        log.contains("OTP") || log.contains("RETRY") -> Color(0xFFFF9800)
+                        else -> Color(0xFF9E9E9E)
+                    }
+                    Text(log, fontSize = 12.sp, color = color, modifier = Modifier.padding(vertical = 2.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RepeatScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) {
+    val state by viewModel.repeatState.collectAsState()
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(16.dp)
+            .verticalScroll(scrollState)
+    ) {
+        Text("مدقق www.repeat.gg", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Info Cards Layer
+        Row(
+            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.surfaceVariant).padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            StatItem("ناجح", state.hits, Color(0xFF1B5E20).copy(alpha = 0.3f), Color(0xFF4CAF50), Color(0xFF81C784), Modifier.weight(1f))
+            StatItem("فاشل", state.bad, Color(0xFFB71C1C).copy(alpha = 0.3f), Color(0xFFF44336), Color(0xFFE57373), Modifier.weight(1f))
+            StatItem("إعادة", state.retry, Color(0xFFE65100).copy(alpha = 0.3f), Color(0xFFFF9800), Color(0xFFFFB74D), Modifier.weight(1f))
+            StatItem("مجهول", state.unknown, Color(0xFF424242).copy(alpha = 0.5f), Color(0xFFBDBDBD), Color(0xFFE0E0E0), Modifier.weight(1f))
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = state.accountList,
+            onValueChange = { viewModel.updateRepeatAccountList(it) },
+            label = { Text("الحسابات (EMAIL:PASS)") },
+            modifier = Modifier.fillMaxWidth().height(150.dp),
+            maxLines = 10,
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = state.threadCount,
+                onValueChange = { viewModel.updateRepeatThreads(it) },
+                label = { Text("عدد البوتات (Threads)") },
+                modifier = Modifier.weight(1f),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                shape = RoundedCornerShape(12.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = { 
+                    if (state.isRunning) viewModel.stopRepeatChecking() else viewModel.startRepeatChecking() 
+                },
+                modifier = Modifier.height(64.dp).padding(top = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = if (state.isRunning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+            ) {
+                Text(if (state.isRunning) "إيقاف" else "بدء الفحص")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("الحالة: ${state.statusText}", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Logs
+        Card(
+            modifier = Modifier.fillMaxWidth().height(200.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            LazyColumn(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+                items(state.logs.size) { index ->
+                    val log = state.logs[index]
+                    val color = when {
+                        log.contains("HIT") -> Color(0xFF4CAF50)
+                        log.contains("BAD") -> Color(0xFFF44336)
+                        log.contains("RETRY") -> Color(0xFFFF9800)
+                        else -> Color(0xFF9E9E9E)
+                    }
+                    Text(log, fontSize = 12.sp, color = color, modifier = Modifier.padding(vertical = 2.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GrowFollowsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) {
+    val state by viewModel.growState.collectAsState()
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+            .padding(16.dp)
+            .verticalScroll(scrollState)
+    ) {
+        Text("مدقق Growfollows.com", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Info Cards Layer
+        Row(
+            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.surfaceVariant).padding(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            StatItem("ناجح", state.hits, Color(0xFF1B5E20).copy(alpha = 0.3f), Color(0xFF4CAF50), Color(0xFF81C784), Modifier.weight(1f))
+            StatItem("فاشل", state.bad, Color(0xFFB71C1C).copy(alpha = 0.3f), Color(0xFFF44336), Color(0xFFE57373), Modifier.weight(1f))
+            StatItem("إعادة", state.retry, Color(0xFFE65100).copy(alpha = 0.3f), Color(0xFFFF9800), Color(0xFFFFB74D), Modifier.weight(1f))
+            StatItem("مجهول", state.unknown, Color(0xFF424242).copy(alpha = 0.5f), Color(0xFFBDBDBD), Color(0xFFE0E0E0), Modifier.weight(1f))
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = state.accountList,
+            onValueChange = { viewModel.updateGrowAccountList(it) },
+            label = { Text("الحسابات (USER:PASS)") },
+            modifier = Modifier.fillMaxWidth().height(150.dp),
+            maxLines = 10,
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = state.threadCount,
+                onValueChange = { viewModel.updateGrowThreads(it) },
+                label = { Text("عدد البوتات (Threads)") },
+                modifier = Modifier.weight(1f),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                shape = RoundedCornerShape(12.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = { 
+                    if (state.isRunning) viewModel.stopGrowChecking() else viewModel.startGrowChecking() 
+                },
+                modifier = Modifier.height(64.dp).padding(top = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = if (state.isRunning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+            ) {
+                Text(if (state.isRunning) "إيقاف" else "بدء الفحص")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("إعدادات تيليجرام (اختياري)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = state.botToken,
+            onValueChange = { viewModel.updateGrowBotToken(it) },
+            label = { Text("Bot Token") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = state.chatId,
+            onValueChange = { viewModel.updateGrowChatId(it) },
+            label = { Text("Chat ID") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("الحالة: ${state.statusText}", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Logs
+        Card(
+            modifier = Modifier.fillMaxWidth().height(200.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            LazyColumn(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+                items(state.logs.size) { index ->
+                    val log = state.logs[index]
+                    val color = when {
+                        log.contains("HIT") -> Color(0xFF4CAF50)
+                        log.contains("BAD") -> Color(0xFFF44336)
+                        log.contains("RETRY") -> Color(0xFFFF9800)
+                        else -> Color(0xFF9E9E9E)
+                    }
+                    Text(log, fontSize = 12.sp, color = color, modifier = Modifier.padding(vertical = 2.dp))
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun SettingsScreen(viewModel: CheckerViewModel, paddingValues: PaddingValues) {
